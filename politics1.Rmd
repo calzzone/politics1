@@ -1,0 +1,208 @@
+---
+title: "politics1"
+author: "putin"
+date: "November 19, 2018"
+output:
+  html_document:
+    df_print: kable
+    fig_caption: yes
+    number_sections: yes
+    theme: journal
+    toc: yes
+    toc_float: yes
+  html_notebook:
+    fig_height: 3.25
+    fig_width: 3.25
+    number_sections: yes
+    toc: yes
+  pdf_document:
+    number_sections: yes
+    toc: yes
+---
+
+
+# Intro
+```{r echo=F, message=F, warning=F}
+library(ggplot2)
+library(ggExtra)
+library(cowplot)
+library(ggpubr)
+
+library(ggcorrplot)
+library(dplyr)
+library(readxl)
+
+library (esquisse)
+library(pander)
+panderOptions('digits', 2)
+panderOptions('round', 2)
+panderOptions('keep.trailing.zeros', TRUE)
+options(scipen = 999)
+options(digits = 3)
+
+library(knitr)
+library(formattable)
+library("kableExtra") #, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5"
+library("xtable")
+library("stargazer")
+library("finalfit")
+
+library(Hmisc) #rcor
+library(ppcor) # pcor.test (partial correlation)
+library(stringr)
+```
+
+```{r echo=F, message=F, warning=F}
+setwd("~/Desktop/politics1")
+#setwd("C:/Users/CalzzOne/Google Drive/Licente/0Acu/Alexandra Dardalat/")
+baza_de_date <- read_excel("politics1.xlsx")
+#View(baza_de_date)
+labels <- names(baza_de_date)
+baza_de_date$Winner <- factor(baza_de_date$Winner, levels=c("Republican", "Democrat"))
+#baza_de_date$`AT1 Polymorphism` <- factor(baza_de_date$`AT1 Polymorphism`, levels=c("AC", "CC", "AA"))
+
+
+```
+
+# Correls
+
+## Surplus vs. % Democrat Votes
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+r <- rcorr(x=baza_de_date$`Democrat %`, y=baza_de_date$`Surplus (USD)`)
+r.and.p.overall <- paste("R=", format(round(r$r[2], 3), nsmall=3), " (p=", scales::pvalue(r$P[2]), ")", sep="")
+r.rep <- rcorr(x=baza_de_date$`Democrat %`[baza_de_date$Winner=="Republican"],
+               y=baza_de_date$`Surplus (USD)`)
+r.and.p.rep <- paste("R=", format(round(r.rep$r[2], 3), nsmall=3), " (p=", scales::pvalue(r.rep$P[2]), ")", sep="")
+r.dem <- rcorr(x=baza_de_date$`Democrat %`[baza_de_date$Winner=="Democrat"],
+               y=baza_de_date$`Surplus (USD)`)
+r.and.p.dem <- paste("R=", format(round(r.dem$r[2], 3), nsmall=3), " (p=", scales::pvalue(r.dem$P[2]), ")", sep="")
+
+ann_text <- data.frame(x = c(0.2, 0.45),
+                       y = c(-75000, 50000), 
+                       lab = c(r.and.p.rep, r.and.p.dem),
+                       Winner = factor(c("Republican","Democrat"),levels = c("Republican","Democrat")))
+
+
+g1 <- ggplot(data = baza_de_date) +
+  aes(x = `Democrat %`, y = `Surplus (USD)`, 
+      label = ifelse(between(`Surplus (USD)`, -25000, 0), '', as.character(Abbreviation))) +
+  geom_hline(yintercept=0, lty="solid", color="grey5", size=0.25)+
+  geom_hline(yintercept=-25000, lty="dotted", color="grey50" )+
+  geom_point(aes(fill = `Winner`), alpha=0.5, size=2, shape=21, color="grey50") + 
+ # geom_text(aes(label=ifelse(between(`Surplus (USD)`, -25000, 0), '', as.character(Abbreviation))), hjust=0, vjust=0) + 
+  ggrepel::geom_text_repel(#aes(label=ifesle(... the thing from above
+                  box.padding   = 0.25, 
+                  point.padding = 0.33, size=3,
+                  segment.color = 'grey50') +
+  geom_smooth(method="loess", fullrange=T, show.legend=F, se=T, alpha=0.25, size=0.5, lty="dashed", color='black') +
+  geom_smooth(aes(color=Winner, fill=Winner), method=lm, fullrange=F, show.legend=T, se=F, size=0.5) +
+  geom_smooth(method = lm, se=F, fullrange=T, show.legend=F, size=0.25, color='black') #, formula=y ~ poly(x, 3, raw=TRUE)) +
+  ggtitle("State budget surplus ($/person)\nvs % democrat votes by election result")+
+  theme_grey()+
+  theme(plot.title = element_text(size=11))
+
+plot(g1 +
+       labs(caption=r.and.p.overall) +
+       scale_y_continuous(limits=c(-75000,50000), breaks = seq(-75000, 50000, 25000),
+                          labels=scales::dollar_format()) +
+       scale_x_continuous(limits=c(0.2,0.65), breaks=seq(0.2, 0.65, 0.1), 
+                          labels = scales::percent_format(accuracy = 1)) +
+       #coord_cartesian(ylim=c(0,4000), xlim=c(0,10000)) +
+       theme(legend.position=c(0.8, 0.85), 
+             legend.background = element_rect(fill="transparent"), 
+             legend.title=element_text(size=10),
+             plot.caption = element_text(size=9) ))
+
+plot(g1 +
+       facet_wrap(~Winner, scales = "free_x") +
+       geom_text(data = ann_text, mapping = aes(x = x, y = y, label = lab), hjust=0, size=3)+
+       #annotate("text", label=r.and.p.rep, x=0, y=0.5)+
+       scale_x_continuous(labels = scales::percent_format(accuracy = 1)) + 
+       scale_y_continuous(limits=c(-75000,50000), breaks = seq(-75000, 50000, 25000),
+                          labels=scales::dollar_format()) +
+       theme(legend.position='none'))
+
+```
+
+## Surplus vs. % Republican Votes
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+r <- rcorr(x=baza_de_date$`Republican %`, y=baza_de_date$`Surplus (USD)`)
+r.and.p.overall <- paste("R=", format(round(r$r[2], 3), nsmall=3), " (p=", scales::pvalue(r$P[2]), ")", sep="")
+r.rep <- rcorr(x=baza_de_date$`Republican %`[baza_de_date$Winner=="Republican"],
+               y=baza_de_date$`Surplus (USD)`)
+r.and.p.rep <- paste("R=", format(round(r.rep$r[2], 3), nsmall=3), " (p=", scales::pvalue(r.rep$P[2]), ")", sep="")
+r.dem <- rcorr(x=baza_de_date$`Republican %`[baza_de_date$Winner=="Democrat"],
+               y=baza_de_date$`Surplus (USD)`)
+r.and.p.dem <- paste("R=", format(round(r.dem$r[2], 3), nsmall=3), " (p=", scales::pvalue(r.dem$P[2]), ")", sep="")
+
+
+g1 <- ggplot(data = baza_de_date) +
+  aes(x = `Republican %`, y = `Surplus (USD)`, 
+      label = ifelse(between(`Surplus (USD)`, -25000, 0), '', as.character(Abbreviation))) +
+  geom_hline(yintercept=0, lty="solid", color="grey5", size=0.25)+
+  geom_hline(yintercept=-25000, lty="dotted", color="grey50" )+
+  geom_point(aes(fill = `Winner`), alpha=0.5, size=2, shape=21, color="grey50") + 
+ # geom_text(aes(label=ifelse(between(`Surplus (USD)`, -25000, 0), '', as.character(Abbreviation))), hjust=0, vjust=0) + 
+  ggrepel::geom_text_repel(#aes(label=ifesle(... the thing from above
+                  box.padding   = 0.25, 
+                  point.padding = 0.33, size=3,
+                  segment.color = 'grey50') +
+  geom_smooth(method="loess", fullrange=T, show.legend=F, se=T, alpha=0.25, size=0.5, lty="dashed", color='black') +
+  geom_smooth(aes(color=Winner, fill=Winner), method=lm, fullrange=F, show.legend=T, se=F, size=0.5) +
+  geom_smooth(method = lm, se=F, fullrange=T, show.legend=F, size=0.25, color='black')+ #, formula=y ~ poly(x, 3, raw=TRUE)) +
+  ggtitle("State budget surplus ($/person)\nvs % republican votes by election result")+
+  theme_grey()+
+  theme(plot.title = element_text(size=11))
+
+plot(g1 +
+       labs(caption=r.and.p.overall) +
+       scale_y_continuous(limits=c(-75000,50000), breaks = seq(-75000, 50000, 25000),
+                          labels=scales::dollar_format()) +
+       scale_x_continuous(limits=c(0.3, 0.7), breaks=seq(0.3, 0.7, 0.1), 
+                          labels = scales::percent_format(accuracy = 1)) +
+       #coord_cartesian(ylim=c(0,4000), xlim=c(0,10000)) +
+       theme(legend.position=c(0.2, 0.85), 
+             legend.background = element_rect(fill="transparent"), 
+             legend.title=element_text(size=10),
+             plot.caption = element_text(size=9) ))
+
+
+ann_text <- data.frame(x = c(0.45, 0.3),
+                       y = c(-75000, 50000), 
+                       lab = c(r.and.p.rep, r.and.p.dem),
+                       Winner = factor(c("Republican","Democrat"),levels = c("Republican","Democrat")))
+
+
+plot(g1 +
+       facet_wrap(~Winner, scales = "free_x") +
+       geom_text(data = ann_text, mapping = aes(x = x, y = y, label = lab), hjust=0, size=3)+
+       #annotate("text", label=r.and.p.rep, x=0, y=0.5)+
+       scale_x_continuous(labels = scales::percent_format(accuracy = 1)) + 
+       scale_y_continuous(limits=c(-75000,50000), breaks = seq(-75000, 50000, 25000),
+                          labels=scales::dollar_format()) +
+       theme(legend.position='none'))
+```
+
+
+
+
+
+```{r fig.width=3, fig.height=4, dpi=144, echo=F, message=F, warning=F}
+# https://www.unc.edu/courses/2007spring/biol/145/001/gifs/lab2/boxplots.JPG
+
+ggplot(baza_de_date, aes(x=`Winner`, y=`Surplus (USD)`, fill=`Winner`)) + 
+  theme_pubclean()+
+  theme(legend.position = "none") + 
+  geom_violin(alpha=0.1, show.legend = F, varwidth=T, trim=F) +
+  geom_boxplot(alpha=0.75, show.legend = F, varwidth=T, width=0.25) +
+  geom_rug(aes(color=Winner),alpha=0.5, sides = "left")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(limits=c(-75000, 25000), name='Surplus (USD)', breaks=seq(-75000, 25000, 25000), 
+                          labels=scales::dollar_format()) +
+  labs(title="State budget surplus ($/person)\nby election result",
+    caption=paste("p=", 
+                     scales::pvalue(t.test(formula=`Surplus (USD)`~`Winner`, data=baza_de_date)$p.value),
+                     sep=""))+
+  theme(axis.title = element_text(size=10) ,
+        plot.title = element_text(size=11)) 
+```

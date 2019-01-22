@@ -1,0 +1,762 @@
+---
+title: "Untitled"
+author: "putin"
+date: "November 19, 2018"
+output:
+  html_document:
+    df_print: kable
+    fig_caption: yes
+    number_sections: yes
+    theme: journal
+    toc: yes
+    toc_float: yes
+  html_notebook:
+    fig_height: 3.25
+    fig_width: 3.25
+    number_sections: yes
+    toc: yes
+  pdf_document:
+    number_sections: yes
+    toc: yes
+---
+
+
+# Intro
+```{r imports, echo=F, message=F, warning=F}
+library(ggplot2)
+#library(ggExtra)
+#library(cowplot)
+#library(ggpubr)
+
+library(dplyr)
+library(tidyr)
+library(readxl)
+```
+```{r get_data, echo=F, message=F, warning=F}
+setwd("~/Desktop/politics1")
+#setwd("C:/Users/CalzzOne/Google Drive/Licente/0Acu/Alexandra Dardalat/")
+baza_de_date <- read_excel("politics1.xlsx")
+#View(baza_de_date)
+labels <- names(baza_de_date)
+baza_de_date$Winner <- factor(baza_de_date$Winner, levels=c("Republican", "Democrat"))
+#baza_de_date$`AT1 Polymorphism` <- factor(baza_de_date$`AT1 Polymorphism`, levels=c("AC", "CC", "AA"))
+
+
+```
+```{r split_violin, echo=F, message=F, warning=F}
+GeomSplitViolin <- ggproto("GeomSplitViolin", GeomViolin, 
+                           draw_group = function(self, data, ..., draw_quantiles = NULL) {
+                             data <- transform(data, xminv = x - violinwidth * (x - xmin), xmaxv = x + violinwidth * (xmax - x))
+                             grp <- data[1, "group"]
+                             newdata <- plyr::arrange(transform(data, x = if (grp %% 2 == 1) xminv else xmaxv), if (grp %% 2 == 1) y else -y)
+                             newdata <- rbind(newdata[1, ], newdata, newdata[nrow(newdata), ], newdata[1, ])
+                             newdata[c(1, nrow(newdata) - 1, nrow(newdata)), "x"] <- round(newdata[1, "x"])
+                             
+                             if (length(draw_quantiles) > 0 & !scales::zero_range(range(data$y))) {
+                               stopifnot(all(draw_quantiles >= 0), all(draw_quantiles <=
+                                                                         1))
+                               quantiles <- ggplot2:::create_quantile_segment_frame(data, draw_quantiles)
+                               aesthetics <- data[rep(1, nrow(quantiles)), setdiff(names(data), c("x", "y")), drop = FALSE]
+                               aesthetics$alpha <- rep(1, nrow(quantiles))
+                               both <- cbind(quantiles, aesthetics)
+                               quantile_grob <- GeomPath$draw_panel(both, ...)
+                               ggplot2:::ggname("geom_split_violin", grid::grobTree(GeomPolygon$draw_panel(newdata, ...), quantile_grob))
+                             }
+                             else {
+                               ggplot2:::ggname("geom_split_violin", GeomPolygon$draw_panel(newdata, ...))
+                             }
+                           })
+
+geom_split_violin <- function(mapping = NULL, data = NULL, stat = "ydensity", position = "identity", ..., 
+                              draw_quantiles = NULL, trim = TRUE, scale = "area", na.rm = FALSE, 
+                              show.legend = NA, inherit.aes = TRUE) {
+  layer(data = data, mapping = mapping, stat = stat, geom = GeomSplitViolin, 
+        position = position, show.legend = show.legend, inherit.aes = inherit.aes, 
+        params = list(trim = trim, scale = scale, draw_quantiles = draw_quantiles, na.rm = na.rm, ...))
+}
+```
+```{r prepare, echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+x = "Winner"
+y = c("Democrat %", "Republican %")
+df <- baza_de_date %>% 
+  dplyr::select(c(x, y)) %>%
+  tidyr::gather(variable, value, -x)
+```
+
+# Regular
+## theme_gray / theme_grey
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  theme_grey()+
+  labs(title="theme_grey", subtitle="ggplot2",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_bw
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  theme_bw()+
+  labs(title="theme_bw", subtitle="ggplot2",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_classic
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  theme_classic()+
+  labs(title="theme_classic", subtitle="ggplot2",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_dark
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  theme_dark() +
+  labs(title="theme_dark", subtitle="ggplot2",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+
+## theme_light
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  theme_light() +
+  labs(title="theme_light", subtitle="ggplot2",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_linedraw
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  theme_linedraw() +
+  labs(title="theme_linedraw", subtitle="ggplot2",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+
+## theme_minimal
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  theme_minimal() +
+  labs(title="theme_minimal", subtitle="ggplot2",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_test
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  theme_test() +
+  labs(title="theme_test", subtitle="ggplot2",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+# ggpubr
+## theme_classic2
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggpubr::theme_classic2() +
+  labs(title="theme_classic2", subtitle="ggpubr",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_cleveland
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggpubr::theme_cleveland() +
+  labs(title="theme_cleveland", subtitle="ggpubr",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_pubclean
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggpubr::theme_pubclean() +
+  labs(title="theme_pubclean", subtitle="ggpubr",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_pubr
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggpubr::theme_pubr() +
+  labs(title="theme_pubr", subtitle="ggpubr",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_transparent
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggpubr::theme_transparent() +
+  labs(title="theme_transparent", subtitle="ggpubr",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+# cowplot
+
+## theme_cowplot
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  cowplot::theme_cowplot() +
+  labs(title="theme_cowplot", subtitle="cowplot",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_map
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  cowplot::theme_map() +
+  labs(title="theme_map", subtitle="cowplot",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_nothing
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  cowplot::theme_nothing() + 
+  labs(title="theme_nothing", subtitle="cowplot",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+
+
+
+# ggthemes
+
+## theme_base
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_base() +
+  labs(title="theme_base", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_calc
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_calc() +
+  labs(title="theme_calc", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_economist
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_economist() +
+  labs(title="theme_economist", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_economist_white
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_economist_white() +
+  labs(title="theme_economist_white", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_excel
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_excel() +
+  labs(title="theme_excel", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_excel
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_excel() +
+  labs(title="theme_excel_new", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_few
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_few() +
+  labs(title="theme_few", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_fivethirtyeight
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_fivethirtyeight() +
+  labs(title="theme_fivethirtyeight", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_foundation
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_foundation() +
+  labs(title="theme_foundation", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_gdocs
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_gdocs() +
+  labs(title="theme_gdocs", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_hc
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_hc() +
+  labs(title="theme_hc", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_igray
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_igray() +
+  labs(title="theme_igray", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_map
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_map() +
+  labs(title="theme_map", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_pander
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_pander() +
+  labs(title="theme_pander", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_par
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_par() +
+  labs(title="theme_par", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_solarized
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_solarized() +
+  labs(title="theme_solarized", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_solarized
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_solarized_2() +
+  labs(title="theme_solarized_2", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_solid
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_solid() +
+  labs(title="theme_solid", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_stata
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_stata() +
+  labs(title="theme_stata", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_tufte
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_tufte() +
+  labs(title="theme_tufte", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
+## theme_wsj
+```{r echo=F, message=F, warning=F, fig.height=4, fig.width=4, dpi=144}
+g3 <- ggplot(df) + aes(fill=Winner, y=value, x=variable) +
+  ggthemes::theme_wsj() +
+  labs(title="theme_wsj", subtitle="ggthemes",
+       caption = "caption", tag = "a") +
+  geom_split_violin(alpha=0.25) +
+  geom_boxplot(alpha=0.75, width=0.25, varwidth = T) +
+  geom_rug(aes(color=Winner), alpha=0.5,sides = "lr")+
+  stat_summary(fun.y=mean, colour="black", geom="point", shape=18, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     name="% of votes received") + 
+  theme(legend.position = "top") +
+  theme(axis.title.x = element_blank())
+
+plot(g3)
+```
+
